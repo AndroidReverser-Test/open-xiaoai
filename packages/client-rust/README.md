@@ -38,6 +38,24 @@ curl -L -o /data/init.sh https://gitee.com/idootop/artifacts/releases/download/o
 reboot
 ```
 
+## 音箱直连 OpenCode 免费模型与网页搜索
+
+`src/bin/deepseek.rs` 是不依赖 WebSocket Server 的语音客户端：它监听小爱的最终语音识别结果，按 `/data/open-xiaoai/opencode-models.json` 的 `order` 依次调用 OpenCode Zen 免费模型。用户说出“配置模型”后，客户端会访问局域网模型管理服务，原子更新该文件；没有同步过时使用内置的当前零价模型顺序。对于需要实时资料的问题，客户端会通过 OpenCode 的 Exa 网页搜索服务检索后再生成回复。
+
+```shell
+# 在 packages/client-rust 目录交叉编译
+docker run --rm -e CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc \
+  -v $(pwd):/app idootop/open-xiaoai-runtime:oh2p \
+  cargo build --bin deepseek --target armv7-unknown-linux-gnueabihf --release --locked
+```
+
+将生成的 `target/armv7-unknown-linux-gnueabihf/release/deepseek` 部署到音箱后运行即可。该模式不使用 `server.txt` 或 WebSocket Server。模型管理服务的启动、排序和部署方法见[直连 OpenCode 免费模型运维手册](../../docs/oh2p-opencode-deepseek.md)。
+
+> [!NOTE]
+> 当前客户端复现 OpenCode CLI 对免费模型的请求，并通过 Zen 函数调用接入 Exa 网页搜索。无需设置 `OPENCODE_ENABLE_EXA` 或单独的搜索 API key，但搜索词会发送给 Exa。模型出现超时、连接、限流、服务端错误或流式响应错误时，会立即切换到下一个免费模型，整轮最长等待 180 秒。若设置 `OPENCODE_API_KEY` 或音箱上的 `/data/open-xiaoai/opencode-api-key`，会优先使用该 key；静态 key 认证失败时会临时切换到 `public` 重试一次，具体实现与限制见下方运维手册。
+
+当前 OH2P 的环境快照、部署和排障步骤见[直连 OpenCode 免费模型运维手册](../../docs/oh2p-opencode-deepseek.md)。
+
 ## 编译运行
 
 > [!TIP]

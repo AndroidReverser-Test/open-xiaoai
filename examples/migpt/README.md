@@ -19,14 +19,27 @@ git clone https://github.com/idootop/open-xiaoai.git
 cd examples/migpt
 ```
 
-然后把 `config.ts` 文件里的配置修改成你自己的。
+示例默认接入 OpenCode Zen 的免费 DeepSeek V4 Flash 模型。当前 Zen 要求 API key，即使使用免费模型；通过 `OPENCODE_API_KEY` 提供该 key，避免将其写入或提交到配置文件。
+
+```shell
+# macOS / Linux
+export OPENCODE_API_KEY="你的 OpenCode Zen API 密钥"
+```
+
+```powershell
+# Windows PowerShell
+$env:OPENCODE_API_KEY = "你的 OpenCode Zen API 密钥"
+```
+
+`config.ts` 的默认配置如下。若要改用其他兼容 OpenAI 接口的服务，只需替换 `baseURL`、`apiKey` 和 `model`。
+默认会将每条最终语音识别结果交给 AI；如需仅响应特定前缀，可修改 `callAIKeywords`。
 
 ```typescript
 export const kOpenXiaoAIConfig = {
   openai: {
-    model: "gpt-4.1-mini",
-    baseURL: "https://api.openai.com/v1",
-    apiKey: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    model: "deepseek-v4-flash-free",
+    baseURL: "https://opencode.ai/zen/v1",
+    apiKey: process.env.OPENCODE_API_KEY ?? "",
   },
   prompt: {
     system: "你是一个智能助手，请根据用户的问题给出回答。",
@@ -46,7 +59,7 @@ export const kOpenXiaoAIConfig = {
 推荐使用以下命令，直接 Docker 一键运行。
 
 ```shell
-docker run -it --rm -p 4399:4399 -v $(pwd)/config.ts:/app/config.ts idootop/open-xiaoai-migpt:latest
+docker run -it --rm -p 4399:4399 -e OPENCODE_API_KEY -v $(pwd)/config.ts:/app/config.ts idootop/open-xiaoai-migpt:latest
 ```
 
 ### 编译运行

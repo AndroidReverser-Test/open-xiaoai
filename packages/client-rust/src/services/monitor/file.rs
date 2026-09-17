@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::future::Future;
+use std::io::ErrorKind;
 use std::path::Path;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
@@ -7,6 +8,18 @@ use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 
 use crate::base::AppError;
+
+#[cfg(unix)]
+fn same_file(left: &std::fs::Metadata, right: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    left.dev() == right.dev() && left.ino() == right.ino()
+}
+
+#[cfg(not(unix))]
+fn same_file(_left: &std::fs::Metadata, _right: &std::fs::Metadata) -> bool {
+    true
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum FileMonitorEvent {
@@ -37,7 +50,9 @@ impl FileMonitor {
         let file_path_clone = file_path.to_string();
 
         let monitor = tokio::spawn(async move {
-            let _ = Self::start_monitor(file_path_clone.as_str(), on_update).await;
+            if let Err(error) = Self::start_monitor(file_path_clone.as_str(), on_update).await {
+                eprintln!("File monitor failed for {file_path_clone}: {error}");
+            }
         });
 
         if let Some(old_task) = self.task_holder.replace(monitor) {
@@ -68,9 +83,24 @@ impl FileMonitor {
         let mut position = metadata.len();
 
         loop {
-            let metadata = reader.get_ref().metadata().await.unwrap();
+            let path_metadata = match tokio::fs::metadata(file_path).await {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == ErrorKind::NotFound => {
+                    sleep(Duration::from_millis(10)).await;
+                    continue;
+                }
+                Err(error) => return Err(error.into()),
+            };
+            let metadata = reader.get_ref().metadata().await?;
 
-            let current_size = metadata.len();
+            if !same_file(&metadata, &path_metadata) {
+                let file = OpenOptions::new().read(true).open(file_path).await?;
+                reader = BufReader::new(file);
+                position = 0;
+                let _ = on_update(FileMonitorEvent::NewFile).await;
+            }
+
+            let current_size = reader.get_ref().metadata().await?.len();
             if current_size < position {
                 position = 0;
                 let _ = on_update(FileMonitorEvent::NewFile).await;

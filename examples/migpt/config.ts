@@ -4,24 +4,28 @@ import { OpenXiaoAIConfig } from "./migpt/xiaoai.js";
 export const kOpenXiaoAIConfig: OpenXiaoAIConfig = {
   openai: {
     /**
-     * 你的大模型服务提供商的接口地址
+     * 大模型服务提供商的接口地址
      *
-     * 支持兼容 OpenAI 接口的大模型服务，比如：DeepSeek V3 等
+     * 默认使用 OpenCode Zen 的免费 DeepSeek V4 Flash 模型。
+     * 也支持其他兼容 OpenAI 接口的大模型服务。
      *
      * 注意：一般以 /v1 结尾，不包含 /chat/completions 部分
-     * - ✅ https://api.openai.com/v1
+     * - ✅ https://opencode.ai/zen/v1
      * - ❌ https://api.openai.com/v1/（最后多了一个 /
      * - ❌ https://api.openai.com/v1/chat/completions（不需要加 /chat/completions）
      */
-    baseURL: "https://api.openai.com/v1",
+    baseURL: "https://opencode.ai/zen/v1",
     /**
-     * API 密钥
+     * OpenCode Zen API 密钥。
+     *
+     * 当前 Zen 要求 API key，即使使用免费模型。通过 OPENCODE_API_KEY 环境变量
+     * 提供，避免将密钥写入或提交到配置文件。
      */
-    apiKey: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    apiKey: process.env.OPENCODE_API_KEY ?? "",
     /**
      * 模型名称
      */
-    model: "gpt-4.1-mini",
+    model: "deepseek-v4-flash-free",
   },
   prompt: {
     /**
@@ -36,12 +40,10 @@ export const kOpenXiaoAIConfig: OpenXiaoAIConfig = {
     historyMaxLength: 10,
   },
   /**
-   * 只回答以下关键词开头的消息：
-   *
-   * - 请问地球为什么是圆的？
-   * - 你知道世界上跑的最快的动物是什么吗？
+   * 空字符串会匹配每条最终语音识别结果，使音箱直接回复所有语音请求。
+   * 如需仅处理特定前缀，可替换为例如：["请", "你"]。
    */
-  callAIKeywords: ["请", "你"],
+  callAIKeywords: [""],
   /**
    * 自定义消息回复
    */
